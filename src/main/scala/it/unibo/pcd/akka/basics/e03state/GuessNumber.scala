@@ -2,17 +2,19 @@ package it.unibo.pcd.akka.basics.e03state
 
 import akka.actor.Status.Success
 import akka.actor.typed.scaladsl.AskPattern.Askable
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 
 import scala.io.StdIn.readLine
 
 object GuessGame:
+  // * passo anche a chi rispondere
   final case class Guess(number: Int, replyTo: ActorRef[GuessOutcome])
 
   sealed trait PlayerMessage
   case object NewInput extends PlayerMessage
   enum GuessOutcome extends PlayerMessage:
+    // * tutti i possibili messaggi che possono essere inviati di tipo PlayerMessage
     case Guessed
     case Loss
     case NotGuessed(hint: Hint, remainingAttempts: Int)
@@ -24,8 +26,9 @@ object GuessGame:
   export Hint.*
 
   object game:
-    def apply(numberToGuess: Int, numberOfAttempts: Int = 10): Behavior[Guess] = Behaviors.receive {
-      (context, msg: Guess) =>
+    def apply(numberToGuess: Int, numberOfAttempts: Int = 10): Behavior[Guess] =
+      // * Specifichiamo la logica di gestione dei messaggi
+      Behaviors.receive { (context, msg: Guess) =>
         if (msg.number == numberToGuess)
           context.log.info(s"You guessed correctly my secret: $numberToGuess. Game ends here.")
           msg.replyTo ! Guessed
@@ -45,7 +48,7 @@ object GuessGame:
           else
             context.log.info("You finished your attempts. Game ends here.")
             Behaviors.stopped
-    }
+      }
 
   object player:
     def apply(
@@ -97,9 +100,12 @@ object GuessNumberMain extends App:
   case object StartPlay
 
   val system = ActorSystem(
+    // * StartPlay è il messaggio che viene inviato al system per iniziare il gioco
     Behaviors.receive[StartPlay.type] { (context, _) =>
       context.log.info("Starting a game.")
+      // * Creaiamo un attore con il Behavior specificato e il seguente nome (modella il gioco stesso)
       val game = context.spawn(GuessGame.game(scala.util.Random.nextInt(100), numberOfAttempts = 5), "guess-listener")
+      // * Creiamo un attore che modella il giocatore
       val player = context.spawn(
         // GuessGame.humanPlayer(game),
         GuessGame.randomPlayer(game, 0, 100),
